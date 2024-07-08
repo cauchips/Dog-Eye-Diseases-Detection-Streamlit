@@ -47,7 +47,7 @@ def simpan_deteksi(timestamp, confidence, boxes, detected_image):
     detected_image.save(img_byte_arr, format='JPEG')
     img_byte_arr = img_byte_arr.getvalue()
     c.execute("INSERT INTO detections (timestamp, confidence, boxes, detected_image) VALUES (?, ?, ?, ?)",
-              (timestamp, confidence, str(boxes), img_byte_arr))
+              (timestamp, confidence, str(boxes.tolist()), img_byte_arr))
     conn.commit()
 
 
@@ -62,13 +62,6 @@ def muat_model(model_path):
     return YOLO(model_path)
 
 
-# Fungsi mendeteksi objek pada frame webcam
-def deteksi_frame(image, model, confidence):
-    results = model.predict(image, conf=confidence)
-    detected_image = results[0].plot()[:, :, ::-1]
-    return detected_image, results[0].boxes
-
-
 # Class for video transformer
 class VideoTransformer(VideoTransformerBase):
     def __init__(self, model, confidence):
@@ -80,13 +73,14 @@ class VideoTransformer(VideoTransformerBase):
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
         results = self.model.predict(img, conf=self.confidence)
-        detected_image = results[0].plot()[:, :, ::-1]
-        self.last_frame = detected_image
+        detected_image = results[0].plot()
+        self.last_frame = cv2.cvtColor(detected_image, cv2.COLOR_BGR2RGB)  # Convert to RGB for proper display
         self.last_boxes = results[0].boxes
-        return detected_image
+        return self.last_frame
 
     def get_last_detection(self):
         return self.last_frame, self.last_boxes
+
 
 # Fungsi login
 def login():
@@ -150,11 +144,13 @@ def halaman_deteksi():
                 if st.sidebar.button('Deteksi Objek'):
                     res = model.predict(uploaded_image, conf=confidence)
                     boxes = res[0].boxes
-                    res_plotted = res[0].plot()[:, :, ::-1]
-                    st.image(res_plotted, caption='Gambar yang Dideteksi', use_column_width=True, output_format='JPEG')
+                    res_plotted = res[0].plot()
+                    res_plotted_rgb = cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)  # Convert to RGB for proper display
+                    st.image(res_plotted_rgb, caption='Gambar yang Dideteksi', use_column_width=True,
+                             output_format='JPEG')
 
                     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                    detected_image = PIL.Image.fromarray(res_plotted)
+                    detected_image = PIL.Image.fromarray(res_plotted_rgb)
                     simpan_deteksi(timestamp, confidence, boxes, detected_image)
 
                     try:
