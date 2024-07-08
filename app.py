@@ -6,7 +6,7 @@ import sqlite3
 import io
 import cv2
 from ultralytics import YOLO
-from conditions import get_conditions
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -56,27 +56,17 @@ def hapus_deteksi(detection_id):
 def muat_model(model_path):
     return YOLO(model_path)
 
-# Fungsi mendeteksi objek pada frame webcam
-def deteksi_frame(image, model, confidence):
-    results = model.predict(image, conf=confidence)
-    detected_image = results[0].plot()[:, :, ::-1]
-    return detected_image, results[0].boxes
+# VideoTransformer untuk memproses frame webcam
+class VideoTransformer(VideoTransformerBase):
+    def __init__(self, model, confidence):
+        self.model = model
+        self.confidence = confidence
 
-# Fungsi menampilkan webcam dan mendeteksi objek
-def jalankan_webcam(confidence, model):
-    vid_cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
-    st_frame = st.empty()
-    display_tracker = st.radio("Kondisi Webcam", ('Jalan', 'Berhenti (untuk menyimpan frame)'))
-    is_display_tracker = True if display_tracker == 'Jalan' else False
-    while vid_cap.isOpened():
-        success, image = vid_cap.read()
-        if success:
-            detected_image, boxes = deteksi_frame(image, model, confidence)
-            st_frame.image(detected_image, channels="BGR")
-            st.session_state.webcam_frame = (detected_image, boxes)
-        else:
-            vid_cap.release()
-            break
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        results = self.model.predict(img, conf=self.confidence)
+        detected_image = results[0].plot()[:, :, ::-1]
+        return detected_image
 
 # Fungsi login
 def login():
@@ -154,8 +144,10 @@ def halaman_deteksi():
 
     elif sumber == 'Webcam':
         st.subheader("Webcam")
-        if st.button("Mulai Deteksi Webcam"):
-            jalankan_webcam(confidence, model)
+        rtc_configuration = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+        webrtc_ctx = webrtc_streamer(key="example", video_transformer_factory=lambda: VideoTransformer(model, confidence), rtc_configuration=rtc_configuration)
+        if webrtc_ctx.video_transformer:
+            webrtc_ctx.video_transformer.confidence = confidence
         if st.session_state.webcam_frame:
             detected_image, boxes = st.session_state.webcam_frame
             st.image(detected_image, channels="BGR", caption="Gambar yang Dideteksi dari Webcam")
