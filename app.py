@@ -64,7 +64,7 @@ def deteksi_frame(image, model, confidence):
 
 # Fungsi menampilkan webcam dan mendeteksi objek
 def jalankan_webcam(confidence, model):
-    vid_cap = cv2.VideoCapture(0)
+    vid_cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
     st_frame = st.empty()
     display_tracker = st.radio("Kondisi Webcam", ('Jalan', 'Berhenti (untuk menyimpan frame)'))
     is_display_tracker = True if display_tracker == 'Jalan' else False
