@@ -6,7 +6,7 @@ import sqlite3
 import io
 from ultralytics import YOLO
 from conditions import get_conditions
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -62,21 +62,21 @@ def muat_model(model_path):
     return YOLO(model_path)
 
 
-# Class for video transformer
-class VideoTransformer(VideoTransformerBase):
+# Class for video processor
+class VideoProcessor(VideoProcessorBase):
     def __init__(self, model, confidence):
         self.model = model
         self.confidence = confidence
         self.last_frame = None
         self.last_boxes = None
 
-    def transform(self, frame):
+    def recv(self, frame):
         img = frame.to_ndarray(format="bgr24")
         results = self.model.predict(img, conf=self.confidence)
         detected_image = results[0].plot()
-        self.last_frame = cv2.cvtColor(detected_image, cv2.COLOR_BGR2RGB)  # Convert to RGB for proper display
+        self.last_frame = detected_image  # Keep as BGR
         self.last_boxes = results[0].boxes
-        return self.last_frame
+        return frame.from_ndarray(detected_image, format="bgr24")
 
     def get_last_detection(self):
         return self.last_frame, self.last_boxes
@@ -145,12 +145,10 @@ def halaman_deteksi():
                     res = model.predict(uploaded_image, conf=confidence)
                     boxes = res[0].boxes
                     res_plotted = res[0].plot()
-                    res_plotted_rgb = cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)  # Convert to RGB for proper display
-                    st.image(res_plotted_rgb, caption='Gambar yang Dideteksi', use_column_width=True,
-                             output_format='JPEG')
+                    st.image(res_plotted, caption='Gambar yang Dideteksi', use_column_width=True, output_format='JPEG')
 
                     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                    detected_image = PIL.Image.fromarray(res_plotted_rgb)
+                    detected_image = PIL.Image.fromarray(res_plotted)
                     simpan_deteksi(timestamp, confidence, boxes, detected_image)
 
                     try:
@@ -164,16 +162,15 @@ def halaman_deteksi():
     elif sumber == 'Webcam':
         st.subheader("Webcam")
         rtc_configuration = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
-        webrtc_ctx = webrtc_streamer(key="example",
-                                     video_transformer_factory=lambda: VideoTransformer(model, confidence),
+        webrtc_ctx = webrtc_streamer(key="example", video_processor_factory=lambda: VideoProcessor(model, confidence),
                                      rtc_configuration=rtc_configuration)
-        if webrtc_ctx.video_transformer:
-            webrtc_ctx.video_transformer.confidence = confidence
+        if webrtc_ctx.video_processor:
+            webrtc_ctx.video_processor.confidence = confidence
 
         if webrtc_ctx.state.playing:
             if st.button("Simpan Frame"):
-                if webrtc_ctx.video_transformer:
-                    detected_image, boxes = webrtc_ctx.video_transformer.get_last_detection()
+                if webrtc_ctx.video_processor:
+                    detected_image, boxes = webrtc_ctx.video_processor.get_last_detection()
                     if detected_image is not None:
                         timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         detected_image_pil = PIL.Image.fromarray(detected_image)
