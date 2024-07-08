@@ -4,7 +4,6 @@ from datetime import datetime
 import PIL
 import sqlite3
 import io
-import cv2
 from ultralytics import YOLO
 from conditions import get_conditions
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
@@ -88,26 +87,6 @@ class VideoTransformer(VideoTransformerBase):
 
     def get_last_detection(self):
         return self.last_frame, self.last_boxes
-
-
-# Fungsi menampilkan webcam dan mendeteksi objek
-def jalankan_webcam(confidence, model):
-    vid_cap = cv2.VideoCapture(1)
-    st_frame = st.empty()
-    if not (vid_cap.isOpened()):
-        print("Webcam tidak bisa dibuka.")
-    display_tracker = st.radio("Kondisi Webcam", ('Jalan', 'Berhenti (untuk menyimpan frame)'))
-    is_display_tracker = True if display_tracker == 'Jalan' else False
-    while vid_cap.isOpened():
-        success, image = vid_cap.read()
-        if success:
-            detected_image, boxes = deteksi_frame(image, model, confidence)
-            st_frame.image(detected_image, channels="BGR")
-            st.session_state.webcam_frame = (detected_image, boxes)
-        else:
-            vid_cap.release()
-            break
-
 
 # Fungsi login
 def login():
