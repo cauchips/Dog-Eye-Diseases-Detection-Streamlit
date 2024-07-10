@@ -1,4 +1,4 @@
-opencv-python-headless==4.9.0.80
+opencv-python==4.9.0.80
 Pillow==10.4.0
 streamlit==1.31.1
 ultralytics==8.2.27
