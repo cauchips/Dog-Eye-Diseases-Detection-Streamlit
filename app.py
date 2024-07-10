@@ -6,7 +6,7 @@ import sqlite3
 import io
 from ultralytics import YOLO
 from conditions import get_conditions
-from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
+from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration, VideoProcessorBase
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -16,11 +16,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
 # Fungsi hash password
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
-
 
 # Kredensial yang telah ditentukan (hashed password)
 USERNAME = "admin"
@@ -40,27 +38,23 @@ c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS detections
              (id INTEGER PRIMARY KEY, timestamp TEXT, confidence REAL, boxes TEXT, detected_image BLOB)''')
 
-
 # Fungsi menyimpan hasil deteksi
 def simpan_deteksi(timestamp, confidence, boxes, detected_image):
     img_byte_arr = io.BytesIO()
     detected_image.save(img_byte_arr, format='JPEG')
     img_byte_arr = img_byte_arr.getvalue()
     c.execute("INSERT INTO detections (timestamp, confidence, boxes, detected_image) VALUES (?, ?, ?, ?)",
-              (timestamp, confidence, str(boxes.tolist()), img_byte_arr))
+              (timestamp, confidence, str(boxes), img_byte_arr))
     conn.commit()
-
 
 # Fungsi menghapus hasil deteksi
 def hapus_deteksi(detection_id):
     c.execute("DELETE FROM detections WHERE id=?", (detection_id,))
     conn.commit()
 
-
 # Fungsi memuat model
 def muat_model(model_path):
     return YOLO(model_path)
-
 
 # Class for video processor
 class VideoProcessor(VideoProcessorBase):
@@ -71,16 +65,19 @@ class VideoProcessor(VideoProcessorBase):
         self.last_boxes = None
 
     def recv(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        results = self.model.predict(img, conf=self.confidence)
-        detected_image = results[0].plot()
-        self.last_frame = detected_image  # Keep as BGR
-        self.last_boxes = results[0].boxes
-        return frame.from_ndarray(detected_image, format="bgr24")
+        try:
+            img = frame.to_ndarray(format="bgr24")
+            results = self.model.predict(img, conf=self.confidence)
+            detected_image = results[0].plot()[:, :, ::-1]
+            self.last_frame = detected_image  # Keep as BGR
+            self.last_boxes = results[0].boxes
+            return frame.from_ndarray(detected_image, format="bgr24")
+        except Exception as e:
+            st.error(f"Error during video processing: {e}")
+            return frame
 
     def get_last_detection(self):
         return self.last_frame, self.last_boxes
-
 
 # Fungsi login
 def login():
@@ -94,7 +91,6 @@ def login():
             st.sidebar.success("Login berhasil!")
         else:
             st.sidebar.error("Username atau password salah")
-
 
 # Fungsi halaman deteksi
 def halaman_deteksi():
@@ -144,7 +140,7 @@ def halaman_deteksi():
                 if st.sidebar.button('Deteksi Objek'):
                     res = model.predict(uploaded_image, conf=confidence)
                     boxes = res[0].boxes
-                    res_plotted = res[0].plot()
+                    res_plotted = res[0].plot()[:, :, ::-1]
                     st.image(res_plotted, caption='Gambar yang Dideteksi', use_column_width=True, output_format='JPEG')
 
                     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
@@ -162,7 +158,8 @@ def halaman_deteksi():
     elif sumber == 'Webcam':
         st.subheader("Webcam")
         rtc_configuration = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
-        webrtc_ctx = webrtc_streamer(key="example", video_processor_factory=lambda: VideoProcessor(model, confidence),
+        webrtc_ctx = webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV,
+                                     video_processor_factory=lambda: VideoProcessor(model, confidence),
                                      rtc_configuration=rtc_configuration)
         if webrtc_ctx.video_processor:
             webrtc_ctx.video_processor.confidence = confidence
@@ -178,7 +175,6 @@ def halaman_deteksi():
                         st.success("Frame berhasil disimpan ke database.")
                     else:
                         st.warning("Tidak ada frame yang dapat disimpan.")
-
 
 # Fungsi halaman riwayat deteksi
 def halaman_riwayat():
@@ -198,7 +194,6 @@ def halaman_riwayat():
             st.experimental_rerun()
         st.markdown("---")
 
-
 # Fungsi halaman daftar penyakit
 def halaman_penyakit():
     st.title("Daftar Kondisi yang Dapat Dideteksi")
@@ -212,17 +207,14 @@ def halaman_penyakit():
         st.subheader(condition)
         st.markdown(description)
 
-
 # Fungsi navigasi
 def berpindah_halaman(page):
     st.session_state.page = page
-
 
 # Fungsi logout
 def logout():
     st.session_state.logged_in = False
     st.session_state.page = "Login"
-
 
 # Menampilkan halaman berdasarkan session state
 if st.session_state.page == "Login":
