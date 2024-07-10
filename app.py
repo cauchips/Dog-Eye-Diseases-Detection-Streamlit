@@ -159,6 +159,9 @@ def halaman_deteksi():
         st.subheader("Webcam")
         rtc_configuration = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
         webrtc_ctx = webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV,
+                                     media_stream_constraints={
+                                         "video": True,
+                                         "audio": False },
                                      video_processor_factory=lambda: VideoProcessor(model, confidence),
                                      rtc_configuration=rtc_configuration)
         if webrtc_ctx.video_processor:
