@@ -101,7 +101,7 @@ def halaman_deteksi():
     st.sidebar.button("Riwayat Deteksi", on_click=berpindah_halaman, args=("Riwayat Deteksi",))
     st.sidebar.button("Daftar Penyakit", on_click=berpindah_halaman, args=("Daftar Penyakit",))
 
-    st.sidebar.subheader("Konfigurasi Model ML")
+    st.sidebar.subheader("Konfigurasi Model")
     confidence = st.sidebar.slider("Pilih Tingkat Keyakinan Model", 25, 100, 40) / 100
 
     try:
@@ -137,11 +137,14 @@ def halaman_deteksi():
                          use_column_width=True,
                          output_format='JPEG')
             else:
-                if st.sidebar.button('Deteksi Objek'):
+                tombol_deteksi = st.empty()
+                deteksi = tombol_deteksi.button('Lakukan Deteksi')
+                if deteksi:
+                    tombol_deteksi.empty()
                     res = model.predict(uploaded_image, conf=confidence)
                     boxes = res[0].boxes
                     res_plotted = res[0].plot()[:, :, ::-1]
-                    st.image(res_plotted, caption='Gambar yang Dideteksi', use_column_width=True, output_format='JPEG')
+                    st.image(res_plotted, caption=f'Gambar yang dideteksi dengan tingkat keyakinan di atas {int(confidence*100)}%', use_column_width=True, output_format='JPEG')
 
                     timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                     detected_image = PIL.Image.fromarray(res_plotted)
@@ -191,7 +194,7 @@ def halaman_riwayat():
     rows = c.fetchall()
     for row in rows:
         st.write(f"Waktu: {row[1]}")
-        st.image(io.BytesIO(row[3]), caption=f'Deteksi dengan Confidence rate > {row[2]}', width=400)
+        st.image(io.BytesIO(row[3]), caption=f'Deteksi dengan tingkat keyakinan di atas {row[2]*100}%', width=400)
         if st.button("Hapus", key=f"delete_{row[0]}"):
             hapus_deteksi(row[0])
             st.experimental_rerun()
