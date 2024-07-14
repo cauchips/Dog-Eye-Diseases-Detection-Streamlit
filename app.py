@@ -113,7 +113,7 @@ def halaman_deteksi():
     st.sidebar.subheader("Konfigurasi Deteksi")
     sumber = st.sidebar.radio("Pilih Sumber", ['Gambar', 'Webcam'])
 
-    if sumber == 'Image':
+    if sumber == 'Gambar':
         source_img = st.sidebar.file_uploader("Pilih gambar...", type=["jpg", "jpeg", "png", "bmp", "webp"])
         col1, col2 = st.columns(2)
 
