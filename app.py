@@ -56,7 +56,7 @@ def hapus_deteksi(detection_id):
 def muat_model(model_path):
     return YOLO(model_path)
 
-# Class for video processor
+# Kelas untuk video processor
 class VideoProcessor(VideoProcessorBase):
     def __init__(self, model, confidence):
         self.model = model
@@ -73,7 +73,7 @@ class VideoProcessor(VideoProcessorBase):
             self.last_boxes = results[0].boxes
             return frame.from_ndarray(detected_image, format="bgr24")
         except Exception as e:
-            st.error(f"Error during video processing: {e}")
+            st.error(f"Error ketika memproses video: {e}")
             return frame
 
     def get_last_detection(self):
@@ -110,8 +110,8 @@ def halaman_deteksi():
         st.error("Tidak dapat memuat model.")
         st.error(ex)
 
-    st.sidebar.subheader("Konfigurasi Gambar/Video")
-    sumber = st.sidebar.radio("Pilih Sumber", ['Image', 'Webcam'])
+    st.sidebar.subheader("Konfigurasi Deteksi")
+    sumber = st.sidebar.radio("Pilih Sumber", ['Gambar', 'Webcam'])
 
     if sumber == 'Image':
         source_img = st.sidebar.file_uploader("Pilih gambar...", type=["jpg", "jpeg", "png", "bmp", "webp"])
