@@ -1,6 +1,5 @@
-opencv-python-headless==4.10.0.82
-opencv-python==4.10.0.82
-Pillow==10.4.0
-streamlit==1.31.1
-ultralytics==8.2.27
+opencv-python-headless
+Pillow==10.3.0
+streamlit==1.35.0
+ultralytics==8.2.2
 streamlit-webrtc==0.47.7
